@@ -30,6 +30,17 @@ left_arm_prev_data = [[0,0],[0,0],[0,0]]
 right_arm_prev_data = [[0,0],[0,0],[0,0]]
 
 # checking if all 3 keypoints for an arm exist
+"""
+ok so this function is supposed to check if all 3 keypoints for an arm are visible on screen
+so if they arent visible then dont bother calculating angle cos how the pose estimation works 
+is that even though the keypoints are offscreen, the coordinates for them still exist.
+but this function doesnt work because anytime you move on screen the keypoint coordinates 
+also update and move. i originally thought it would keep its last known coordinates, but apparently thats
+not the case.
+so i can't figure out how to code this.
+ill do more research into it but for now this isnt really working how its supposed to, but it
+doesnt impact the rest of the code (i think)
+"""
 def check_arm_kp_exist(side, l_prev, r_prev):
     left_exist = True
     right_exist = True
@@ -49,7 +60,7 @@ def check_arm_kp_exist(side, l_prev, r_prev):
         for part in range(0,3):
             counter = 0
             for coord in range(0,2):
-                if l_prev[part][coord] - 0.003 < left_arm_kp_data[part][coord] < l_prev[part][coord] + 0.003:
+                if left_arm_kp_data[part][coord] == l_prev[part][coord]:
                     counter += 1
             num_same.append(counter)
         print(f"num_same_l: {num_same}")
@@ -67,7 +78,7 @@ def check_arm_kp_exist(side, l_prev, r_prev):
         for part in range(0,3):
             counter = 0
             for coord in range(0,2):
-                if r_prev[part][coord] - 0.003 < right_arm_kp_data[part][coord] < r_prev[part][coord] + 0.003:
+                if right_arm_kp_data[part][coord] == r_prev[part][coord]:
                     counter += 1
             num_same.append(counter)
         print(f"num_same_r: {num_same}")
@@ -80,25 +91,25 @@ def check_arm_kp_exist(side, l_prev, r_prev):
 def get_left_arm_kp():
     left_shoulder_x = get_keypoint_position(5, axis = 'x')
     left_shoulder_y = get_keypoint_position(5, axis = 'y')
-    print(f"Left Shoulder: ({left_shoulder_x:.2f}, {left_shoulder_y:.2f})")
+    #print(f"Left Shoulder: ({left_shoulder_x:.2f}, {left_shoulder_y:.2f})")
     left_elbow_x = get_keypoint_position(7, axis = 'x')
     left_elbow_y = get_keypoint_position(7, axis = 'y')
-    print(f"Left Elbow: ({left_elbow_x:.2f}, {left_elbow_y:.2f})")
+    #print(f"Left Elbow: ({left_elbow_x:.2f}, {left_elbow_y:.2f})")
     left_wrist_x = get_keypoint_position(9, axis = 'x')
     left_wrist_y = get_keypoint_position(9, axis = 'y')
-    print(f"Left Wrist: ({left_wrist_x:.2f}, {left_wrist_y:.2f})")
+    #print(f"Left Wrist: ({left_wrist_x:.2f}, {left_wrist_y:.2f})")
     return left_shoulder_x, left_shoulder_y, left_elbow_x, left_elbow_y, left_wrist_x, left_wrist_y
     
 def get_right_arm_kp():
     right_shoulder_x = get_keypoint_position(6, axis = 'x')
     right_shoulder_y = get_keypoint_position(6, axis = 'y')
-    print(f"Right Shoulder: ({right_shoulder_x:.2f}, {right_shoulder_y:.2f})")
+    #print(f"Right Shoulder: ({right_shoulder_x:.2f}, {right_shoulder_y:.2f})")
     right_elbow_x = get_keypoint_position(8, axis = 'x')
     right_elbow_y = get_keypoint_position(8, axis = 'y')
-    print(f"Right Elbow: ({right_elbow_x:.2f}, {right_elbow_y:.2f})")
+    #print(f"Right Elbow: ({right_elbow_x:.2f}, {right_elbow_y:.2f})")
     right_wrist_x = get_keypoint_position(10, axis = 'x')
     right_wrist_y = get_keypoint_position(10, axis = 'y')
-    print(f"Right Wrist: ({right_wrist_x:.2f}, {right_wrist_y:.2f})")
+    #print(f"Right Wrist: ({right_wrist_x:.2f}, {right_wrist_y:.2f})")
     return right_shoulder_x, right_shoulder_y, right_elbow_x, right_elbow_y, right_wrist_x, right_wrist_y
 
 """
@@ -148,7 +159,7 @@ while True:
             ls_x, ls_y, le_x, le_y, lw_x, lw_y = get_left_arm_kp()
             angle_left = angle_calc.angle_calc(ls_x, ls_y, lw_x, lw_y, le_x, le_y)
             angle_l_text = f"Left arm angle: {angle_left:.2f}"
-            print(angle_l_text)
+            #print(angle_l_text)
             cv2.putText(annotated_frame, angle_l_text, (0, 50), font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
             # updating prev data variable
             left_arm_val = [ls_x, ls_y, le_x, le_y, lw_x, lw_y]
@@ -163,7 +174,7 @@ while True:
             rs_x, rs_y, re_x, re_y, rw_x, rw_y = get_right_arm_kp()
             angle_right = angle_calc.angle_calc(rs_x, rs_y, rw_x, rw_y, re_x, re_y)
             angle_r_text = f"Right arm angle: {angle_right:.2f}"
-            print(angle_r_text)
+            #print(angle_r_text)
             cv2.putText(annotated_frame, angle_r_text, (0, 70), font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
             # updating prev arm variable
             right_arm_val = [rs_x, rs_y, re_x, re_y, rw_x, rw_y]
