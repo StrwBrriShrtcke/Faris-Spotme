@@ -1,6 +1,7 @@
 import cv2
 # from picamera2 import Picamera2
 from ultralytics import YOLO
+from ultralytics import solutions
 
 import angle_calc
 
@@ -25,67 +26,29 @@ def get_keypoint_position(keypoint_num, axis='x'):
     # Return x or y coordinate based on axis parameter
     return keypoint[0].item() if axis.lower() == 'x' else keypoint[1].item()
 
-# initialising variables to track previous keypoint data 
-left_arm_prev_data = [[0,0],[0,0],[0,0]]
-right_arm_prev_data = [[0,0],[0,0],[0,0]]
-
 # checking if all 3 keypoints for an arm exist
-"""
-ok so this function is supposed to check if all 3 keypoints for an arm are visible on screen
-so if they arent visible then dont bother calculating angle cos how the pose estimation works 
-is that even though the keypoints are offscreen, the coordinates for them still exist.
-but this function doesnt work because anytime you move on screen the keypoint coordinates 
-also update and move. i originally thought it would keep its last known coordinates, but apparently thats
-not the case.
-so i can't figure out how to code this.
-ill do more research into it but for now this isnt really working how its supposed to, but it
-doesnt impact the rest of the code (i think)
-"""
-def check_arm_kp_exist(side, l_prev, r_prev):
+def check_arm_kp_exist(side):
     left_exist = True
     right_exist = True
     left_arm_kpts = [5, 7, 9]
     right_arm_kpts = [6, 8, 10]
-    left_arm_kp_data = [[], [], []]
-    right_arm_kp_data = [[], [], []]
-    num_same = []
-    counter = 0
     if side.lower() == 'left':
         for keypoint_num in left_arm_kpts:
-            keypoint_data = results[0].keypoints.xyn[0][keypoint_num]
-            left_arm_kp_data[counter].append(keypoint_data[0].item())
-            left_arm_kp_data[counter].append(keypoint_data[1].item())
-            counter += 1
-        #print(f"Left arm kp list: {left_arm_kp_data}")
-        for part in range(0,3):
-            counter = 0
-            for coord in range(0,2):
-                if left_arm_kp_data[part][coord] == l_prev[part][coord]:
-                    counter += 1
-            num_same.append(counter)
-        print(f"num_same_l: {num_same}")
-        for i in num_same:
-            if i == 2:
+            keypoint_visi = results[0].keypoints.data[0][keypoint_num][2]
+            if keypoint_visi < 0.8:
                 left_exist = False
+                #print("left no exist")
                 return left_exist
+        #print("left yes exist")
         return left_exist
     else:
         for keypoint_num in right_arm_kpts:
-            keypoint_data = results[0].keypoints.xyn[0][keypoint_num]
-            right_arm_kp_data[counter].append(keypoint_data[0].item())
-            right_arm_kp_data[counter].append(keypoint_data[1].item())
-            counter += 1
-        for part in range(0,3):
-            counter = 0
-            for coord in range(0,2):
-                if right_arm_kp_data[part][coord] == r_prev[part][coord]:
-                    counter += 1
-            num_same.append(counter)
-        print(f"num_same_r: {num_same}")
-        for i in num_same:
-            if i == 2:
+            keypoint_visi = results[0].keypoints.data[0][keypoint_num][2]
+            if keypoint_visi < 0.8:
                 right_exist = False
+                #print("right no exist")
                 return right_exist
+        #print("right yes exist")
         return right_exist
 
 def get_left_arm_kp():
@@ -123,7 +86,7 @@ picam2.start()
 """
 
 # Load our YOLO11 model
-model = YOLO("yolo11n-pose.pt")
+model = YOLO("yolo26n-pose.pt")
 cam = cv2.VideoCapture(0)
 
 while True:
@@ -136,8 +99,21 @@ while True:
         break
 
     # Run YOLO model on the captured frame and store the results
-    results = model.predict(frame, imgsz = 640)
+    # max_det is the maximum object detection (per class i think). currently a crude method to limit the detection
+    results = model.predict(frame, imgsz = 640, max_det = 1)
     
+    # isolating the user from all the objects detected (ignore stuff here its lowk not working/might be useless)
+    """if results[0].boxes.is_track == True:
+        bbox_sizes = {}
+        bbox_data = results[0].boxes
+        num_bbox = len(bbox_data)
+        for row in range(num_bbox):
+            if bbox_data[row][6] == 0:
+                bbox_size = angle_calc.line_length(bbox_data[row][0],bbox_data[row][1],bbox_data[row][2],bbox_data[row][3])
+                bbox_sizes[bbox_data[row][4]] = bbox_size
+    biggest_size = max(bbox_sizes.values())
+    user_id = bbox_sizes.get(biggest_size)"""
+
     # Output the visual detection data, we will draw this on our camera preview window
     annotated_frame = results[0].plot()
     
@@ -154,35 +130,21 @@ while True:
 
     # angle calculation and displaying for both arms
     try:
-        left_arm_exist = check_arm_kp_exist('left', left_arm_prev_data, right_arm_prev_data)
+        left_arm_exist = check_arm_kp_exist('left')
         if left_arm_exist == True:
             ls_x, ls_y, le_x, le_y, lw_x, lw_y = get_left_arm_kp()
             angle_left = angle_calc.angle_calc(ls_x, ls_y, lw_x, lw_y, le_x, le_y)
             angle_l_text = f"Left arm angle: {angle_left:.2f}"
             #print(angle_l_text)
             cv2.putText(annotated_frame, angle_l_text, (0, 50), font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
-            # updating prev data variable
-            left_arm_val = [ls_x, ls_y, le_x, le_y, lw_x, lw_y]
-            counter = 0
-            for i in range(0,3):
-                for n in range(0,2):
-                    left_arm_prev_data[i][n] = left_arm_val[counter]
-                    counter += 1
 
-        right_arm_exist = check_arm_kp_exist('right', left_arm_prev_data, right_arm_prev_data)
+        right_arm_exist = check_arm_kp_exist('right')
         if right_arm_exist == True:
             rs_x, rs_y, re_x, re_y, rw_x, rw_y = get_right_arm_kp()
             angle_right = angle_calc.angle_calc(rs_x, rs_y, rw_x, rw_y, re_x, re_y)
             angle_r_text = f"Right arm angle: {angle_right:.2f}"
             #print(angle_r_text)
             cv2.putText(annotated_frame, angle_r_text, (0, 70), font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
-            # updating prev arm variable
-            right_arm_val = [rs_x, rs_y, re_x, re_y, rw_x, rw_y]
-            counter = 0
-            for i in range(0, 3):
-                for n in range(0, 2):
-                    right_arm_prev_data[i][n] = right_arm_val[counter]
-                    counter += 1
     
     except (IndexError, AttributeError):
         print("No person detected in frame")
