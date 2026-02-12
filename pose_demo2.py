@@ -19,8 +19,12 @@ SKELETON = [
 
 # data for form correction
 form_data = {
-    "bicep curl": {"min": 27, "max": 175},
-    "tricep press": {"min": 90, "max": 165},
+    "bicep curl": {"min": 27, "max": 170}, # arms kpts
+    "tricep press": {"min": 85, "max": 170}, # arms kpts
+    "rows":{"min":85, "max":170}, # arms kpts
+    "ab crunch":{"min":40, "max":150}, # shoulder, hip, knee
+    "leg curl":{"min":30,"max":130}, # leg kpts
+    "chest press":{"min":90,"max":170} # arms kpts
 }
 
 
