@@ -1,7 +1,6 @@
 import cv2
 # from picamera2 import Picamera2
 from ultralytics import YOLO
-from ultralytics import solutions
 
 import angle_calc
 
@@ -25,6 +24,9 @@ def get_keypoint_position(keypoint_num, axis='x'):
     
     # Return x or y coordinate based on axis parameter
     return keypoint[0].item() if axis.lower() == 'x' else keypoint[1].item()
+
+# data for form correction
+form_data = {"bicep curl":{"min":27, "max":175}, "tricep press":{"min":90, "max":165}}
 
 # checking if all 3 keypoints for an arm exist
 def check_arm_kp_exist(side):
@@ -75,6 +77,22 @@ def get_right_arm_kp():
     #print(f"Right Wrist: ({right_wrist_x:.2f}, {right_wrist_y:.2f})")
     return right_shoulder_x, right_shoulder_y, right_elbow_x, right_elbow_y, right_wrist_x, right_wrist_y
 
+# form correction feedbackmaxxer
+def form_corrector(form_data, angle, exercise):
+    good_text = "You are doing great! Keep it up!"
+    for name in form_data.keys():
+        if name.lower() == exercise.lower():
+            if form_data[exercise]["min"] + 10 < angle < form_data[exercise]["min"] + 20:
+                contract_more_text = "Your arm is not contracted enough. Keep going!"
+                return contract_more_text
+            elif form_data[exercise]["max"] - 20 < angle < form_data[exercise]["max"] - 10:
+                extend_more_text = "Your arm is not extended enough. Keep going!"
+                return extend_more_text
+            else:
+                return good_text
+        else:
+            return "Exercise not in system"
+
 """
 # Set up the camera with Picam
 picam2 = Picamera2()
@@ -85,7 +103,7 @@ picam2.configure("preview")
 picam2.start()
 """
 
-# Load our YOLO11 model
+# Load our YOLO26 model
 model = YOLO("yolo26n-pose.pt")
 cam = cv2.VideoCapture(0)
 
@@ -136,7 +154,8 @@ while True:
             angle_left = angle_calc.angle_calc(ls_x, ls_y, lw_x, lw_y, le_x, le_y)
             angle_l_text = f"Left arm angle: {angle_left:.2f}"
             #print(angle_l_text)
-            cv2.putText(annotated_frame, angle_l_text, (0, 50), font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(annotated_frame, form_corrector(form_data, angle_left, "bicep curl"), (0, 50), font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(annotated_frame, angle_l_text, (0, 70), font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
 
         right_arm_exist = check_arm_kp_exist('right')
         if right_arm_exist == True:
@@ -144,7 +163,8 @@ while True:
             angle_right = angle_calc.angle_calc(rs_x, rs_y, rw_x, rw_y, re_x, re_y)
             angle_r_text = f"Right arm angle: {angle_right:.2f}"
             #print(angle_r_text)
-            cv2.putText(annotated_frame, angle_r_text, (0, 70), font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(annotated_frame, form_corrector(form_data, angle_right, "bicep curl"), (0, 90), font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(annotated_frame, angle_r_text, (0, 110), font, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
     
     except (IndexError, AttributeError):
         print("No person detected in frame")
