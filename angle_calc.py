@@ -59,6 +59,7 @@ def angle_calc(x1_pos, y1_pos, x2_pos, y2_pos, mid_x_pos, mid_y_pos):
         theta = math.acos(numerator/denom)
         angle = math.degrees(theta)
     else: 
+        #print(abs(numerator)/denom)
         theta = math.acos(abs(numerator)/denom)
         angle = 180 - math.degrees(theta)
     return angle

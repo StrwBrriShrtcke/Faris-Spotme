@@ -17,6 +17,47 @@ SKELETON = [
     (8, 10),  # right elbow to right wrist
 ]
 
+SKELETON_ab = [
+    (5,6), # shoulders
+    (6,12), # r shoulder to r hip
+    (5,11), # l shoulder to l hip
+    (11,12), # hips
+    (11,13), # l hip to l knee
+    (12,14), # r hip to r knee
+]
+
+SKELETON_legs = [
+    (11,12), # hips
+    (11,13), # l hip to l knee
+    (12,14), # r hip to r knee
+    (13,15), # l knee to l ankle
+    (14,16), # r knee to r ankle
+]
+
+keypoints_exercises = {
+    "arm":((5,7,9),(6,8,10)), # left arm kpts, right arm kpts
+    "hip":((5,11,13),(6,12,14)), # left hip kpts, right hip kpts
+    "leg":((11,13,15),(12,14,16)), # left leg kpts, right leg kpts
+}
+
+exercises_what_kpts = {
+    "bicep curl": keypoints_exercises["arm"],
+    "tricep press": keypoints_exercises["arm"],
+    "rows": keypoints_exercises["arm"],
+    "ab crunch": keypoints_exercises["hip"],
+    "leg curl": keypoints_exercises["leg"],
+    "chest press": keypoints_exercises["arm"],
+}
+
+exercises_what_skeleton = {
+    "bicep curl": SKELETON,
+    "tricep press": SKELETON,
+    "rows": SKELETON,
+    "ab crunch": SKELETON_ab,
+    "leg curl": SKELETON_legs,
+    "chest press": SKELETON,
+}
+
 # data for form correction
 form_data = {
     "bicep curl": {"min": 27, "max": 170}, # arms kpts
@@ -34,7 +75,7 @@ def check_arm_kp_exist(kconf, idxs, th=0.8):
         return True  # if model doesn't provide conf, just try
     return all(float(kconf[i]) >= th for i in idxs)
 
-
+"""
 def get_left_arm_kp(
     kxy,
 ) -> tuple[float, float, float, float, float, float]:
@@ -70,6 +111,35 @@ def get_right_arm_kp(kxy) -> tuple[float, float, float, float, float, float]:
         right_wrist_y,
     )
 
+"""
+
+def get_left_kp(kxy, exercise):
+    left_kp = exercises_what_kpts[exercise][0]
+    left_kpt1_x, left_kpt1_y = kxy[left_kp[0]]
+    left_kpt2_x, left_kpt2_y = kxy[left_kp[1]]
+    left_kpt3_x, left_kpt3_y = kxy[left_kp[2]]
+    return (
+        left_kpt1_x,
+        left_kpt1_y,
+        left_kpt2_x,
+        left_kpt2_y,
+        left_kpt3_x,
+        left_kpt3_y,
+    )
+
+def get_right_kp(kxy, exercise):
+    right_kp = exercises_what_kpts[exercise][1]
+    right_kpt1_x, right_kpt1_y = kxy[right_kp[0]]
+    right_kpt2_x, right_kpt2_y = kxy[right_kp[1]]
+    right_kpt3_x, right_kpt3_y = kxy[right_kp[2]]
+    return (
+        right_kpt1_x,
+        right_kpt1_y,
+        right_kpt2_x,
+        right_kpt2_y,
+        right_kpt3_x,
+        right_kpt3_y
+    )
 
 # form correction feedbackmaxxer
 def form_corrector(form_data, angle, exercise):
@@ -96,8 +166,9 @@ def form_corrector(form_data, angle, exercise):
             return "Exercise not in system"
 
 
-def draw_pose(out, kpts_xy, kpts_conf=None, conf_thres=0.3):
-    for a, b in SKELETON:
+def draw_pose(out, kpts_xy, exercise, kpts_conf=None, conf_thres=0.3):
+    skeleton_draw = exercises_what_skeleton[exercise]
+    for a, b in skeleton_draw:
         xa, ya = kpts_xy[a]
         xb, yb = kpts_xy[b]
         if kpts_conf is not None and (
@@ -168,6 +239,9 @@ def on_mouse(event, x, y, flags, param):
 
 cv2.namedWindow("Camera")
 cv2.setMouseCallback("Camera", on_mouse)
+
+# test exercise variable
+exercise_wanted = "ab crunch"
 
 # ---------------- Main loop ----------------
 while True:
@@ -249,17 +323,17 @@ while True:
                 if hasattr(kpts, "conf") and kpts.conf is not None:
                     kconf = kpts.conf[i].cpu().numpy()
 
-                left_ok = check_arm_kp_exist(kconf, [5, 7, 9], th=0.8)
-                right_ok = check_arm_kp_exist(kconf, [6, 8, 10], th=0.8)
+                left_ok = check_arm_kp_exist(kconf, exercises_what_kpts[exercise_wanted][0], th=0.8)
+                right_ok = check_arm_kp_exist(kconf, exercises_what_kpts[exercise_wanted][1], th=0.8)
                 if left_ok:
-                    ls_x, ls_y, le_x, le_y, lw_x, lw_y = get_left_arm_kp(kxy)
+                    l1_x, l1_y, l2_x, l2_y, l3_x, l3_y = get_left_kp(kxy,exercise_wanted)
                     angle_left = angle_calc.angle_calc(
-                        ls_x, ls_y, lw_x, lw_y, le_x, le_y
+                        l1_x, l1_y, l3_x, l3_y, l2_x, l2_y
                     )
-                    angle_l_text = f"Left elbow: {angle_left:.1f}"
+                    angle_l_text = f"Left angle: {angle_left:.1f}"
                     cv2.putText(
                         out,
-                        form_corrector(form_data, angle_left, "bicep curl"),
+                        form_corrector(form_data, angle_left, exercise_wanted),
                         (0, 50),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5,
@@ -278,14 +352,14 @@ while True:
                     )
 
                 if right_ok:
-                    rs_x, rs_y, re_x, re_y, rw_x, rw_y = get_right_arm_kp(kxy)
+                    r1_x, r1_y, r2_x, r2_y, r3_x, r3_y = get_right_kp(kxy, exercise_wanted)
                     angle_right = angle_calc.angle_calc(
-                        rs_x, rs_y, rw_x, rw_y, re_x, re_y
+                        r1_x, r1_y, r3_x, r3_y, r2_x, r2_y
                     )
-                    angle_r_text = f"Right elbow: {angle_right:.1f}"
+                    angle_r_text = f"Right angle: {angle_right:.1f}"
                     cv2.putText(
                         out,
-                        form_corrector(form_data, angle_right, "bicep curl"),
+                        form_corrector(form_data, angle_right, exercise_wanted),
                         (0, 90),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5,
@@ -302,7 +376,7 @@ while True:
                         (255, 255, 255),
                         2,
                     )
-                draw_pose(out, kxy, kconf, conf_thres=0.3)
+                draw_pose(out, kxy, exercise_wanted, kconf, conf_thres=0.3)
 
             cv2.rectangle(out, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(
