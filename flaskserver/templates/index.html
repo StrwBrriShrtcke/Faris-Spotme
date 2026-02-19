@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html style="height:100vh;margin:0;">
+<head>
+  <meta charset="UTF-8">
+  <title>Workout Demo</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body { margin:0; font-family: Arial; background:#000; color:#0f0; }
+    .top { height:50vh; background:#000; }
+    .bottom { height:50vh; background:#111; padding:16px; box-sizing:border-box; }
+  </style>
+</head>
+<body>
+
+  <!-- TOP HALF: YOUR RESPONSIBILITY -->
+  <div class="top">
+    <img src="/video_feed" style="width:100%;height:100%;object-fit:cover;">
+  </div>
+
+  <!-- BOTTOM HALF: HER RESPONSIBILITY -->
+  <div class="bottom" id="demo-area">
+    <!-- DEMO VIDEO AREA START (she edits everything inside here) -->
+    <h2>Workout Demo</h2>
+    <video id="demoVideo" width="640" controls>
+      <source src="/static/demo.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+    <div>
+      <button id="playBtn">Play</button>
+      <button id="pauseBtn">Pause</button>
+    </div>
+    <p id="feedback">Waiting for pose data...</p>
+    <!-- DEMO VIDEO AREA END -->
+  </div>
+
+  <!-- SHARED SOCKET.IO CONNECTION -->
+  <script>
+    const socket = io();           // you provide this
+
+    socket.on("pose_data", data => {
+      // she can use this data for UI
+      document.getElementById("feedback").textContent = data.feedback;
+    });
+
+    // example: she can send commands back if needed
+    document.getElementById("playBtn").onclick = () => {
+      document.getElementById("demoVideo").play();
+      socket.emit("play_video");
+    };
+    document.getElementById("pauseBtn").onclick = () => {
+      document.getElementById("demoVideo").pause();
+      socket.emit("pause_video");
+    };
+  </script>
+</body>
+</html>
