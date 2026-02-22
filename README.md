@@ -35,6 +35,16 @@ if doing development on your own pc/laptop, just use the normal `.pt` pytorch mo
 
 ## Developer Guide
 
+### Clone the repo
+
+```
+git clone https://github.com/StrwBrriShrtcke/Faris-Spotme.git
+```
+
+```
+cd Faris-SpotMe
+```
+
 ### First time set up
 
 ```
@@ -92,3 +102,25 @@ git stash pop
 
 # after that handle merge conflicts and proceed to re-add, re-commit then push your changes
 ```
+
+### Download UV
+
+follow the documentation @ https://docs.astral.sh/uv/getting-started/installation/
+
+### First run
+
+make sure you have the latest code by running `git pull`
+
+update your dependencies by running, do this step before running the app for the first time and if your code happens to not run, then update your dependencies again by running the below command
+
+```
+uv sync
+```
+
+you can now run the app with
+
+```
+uv run main/app.py
+```
+
+go to http://localhost:3000 to view the app
