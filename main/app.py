@@ -25,8 +25,8 @@ socketio = SocketIO(
 # ── Shared globals (same as pose_demo2.py) ──
 cap = cv2.VideoCapture(0)
 # use yolo26n-pose.pt for easier development on computer, switch to yolo26n-pose_ncnn_model for better performance on raspberry pi
-model = YOLO("yolo26n-pose.pt")
-# model = YOLO("yolo26n-pose_ncnn_model")
+# model = YOLO("yolo26n-pose.pt")
+model = YOLO("yolo26n-pose_ncnn_model")
 
 IMGSZ = 320
 
