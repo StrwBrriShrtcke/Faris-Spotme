@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Workout!</title>
+
+    <!-- Link to CSS and JS files -->
+    <link href="/static/style.css" rel="stylesheet" />
+    <script defer src="/static/workout.js" type="module"></script>
+
+    <!-- Socket.IO client -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  </head>
+
+  <body>
+    <h1 id="bodyTitle">{{ pageTitle }}</h1>
+
+    <!-- Display live pose camera feed -->
+    <img id="pose-camera" src="/video_feed" width="800" />
+
+    <!-- Display pose feedback -->
+    <div class="pose-panel">
+      <div class="pose-side">
+        <h2>Left</h2>
+        <p>Angle: <span id="left-angle">—</span>°</p>
+        <p>Feedback: <span id="left-feedback">Waiting…</span></p>
+      </div>
+
+      <div class="pose-side">
+        <h2>Right</h2>
+        <p>Angle: <span id="right-angle">—</span>°</p>
+        <p>Feedback: <span id="right-feedback">Waiting…</span></p>
+      </div>
+    </div>
+
+    <!-- Display workout video -->
+    <iframe
+      id="workout-video"
+      src="{{ video }}"
+      allow="autoplay; encrypted-media"
+      allowfullscreen
+    ></iframe>
+  </body>
+</html>
