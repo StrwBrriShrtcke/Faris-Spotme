@@ -1,4 +1,6 @@
 body {
+  padding-top: 50px;
+  align-items: center;
   margin: 20px;
   background: #171a16;
   background: linear-gradient(
@@ -10,9 +12,8 @@ body {
   width: 1200px;
   height: 1920px;
 }
-body {
+surround-box {
   padding-top: 50px;
-  background-color: rgb(189, 186, 186);
   align-items: center;
   border-style: groove;
   border-color: white;
@@ -29,18 +30,20 @@ body {
   font-size: 70px;
 }
 .button {
+  padding: 30px;
   background-color: #928989;
-  border-style: wave;
+  border-style: groove;
   border-color: white;
   color: rgb(255, 255, 255);
   padding: 15px 32px;
   text-align: center;
   display: inline-block;
-  font-size: 16px;
+  font-size: 26px;
   cursor: pointer;
   border-radius: 16px;
   justify-content: center;
-  width: 270px;
+  width: 400px;
+  height: 200px;
   margin: 30px;
 }
 
@@ -75,6 +78,7 @@ body {
   font-size: 40px;
 }
 .button-container {
+  padding-top: 30px;
   align-items: center;
   display: flex;
   width: 80%;
