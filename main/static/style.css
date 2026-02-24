@@ -60,9 +60,9 @@ surround-box {
   font-family: "Times New Roman", serif;
   text-align: center;
   color: rgb(255, 255, 255);
-  margin-top: auto;
+  margin: auto;
   font-size: 40px;
-  width: 90%;
+  width: 80%;
 }
 #bodyTitle {
   padding-top: 10px;
@@ -100,8 +100,10 @@ surround-box {
 .pose-panel {
   display: flex;
   gap: 24px;
-  margin: 12px 0;
+  margin: auto;
   align-items: center;
+  padding-top: 20px;
+  width: 900px;
 }
 
 .pose-side {
@@ -114,11 +116,10 @@ surround-box {
   align-items: center;
   display: inline-block;
   font-size: 26px;
-  padding: 12px;
   border: 1px solid #ddd;
   border-radius: 12px;
-  min-width: 260px;
   align-items: center;
+  width: 400px;
 }
 #pose-camera {
   display: block;
