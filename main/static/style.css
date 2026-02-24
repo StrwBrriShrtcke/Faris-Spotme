@@ -1,6 +1,14 @@
 body {
   margin: 20px;
-  background-color: #b1c3ff;
+  background: #171a16;
+  background: linear-gradient(
+    90deg,
+    rgba(23, 26, 22, 1) 0%,
+    rgba(60, 66, 62, 1) 50%,
+    rgba(148, 147, 136, 1) 100%
+  );
+  width: 1200px;
+  height: 1920px;
 }
 .heading {
   font-family: "Arial", sans-serif;
@@ -8,7 +16,7 @@ body {
   color: black;
 }
 .button {
-  background-color: #f3e8c3;
+  background-color: #e1d6d6;
   border-style: wave;
   border-color: white;
   color: black;
@@ -25,7 +33,7 @@ body {
 .button-container {
   align-items: center;
   display: flex;
-  width: 100%;
+  width: 80%;
   margin: 20px;
 }
 #workout-video {
