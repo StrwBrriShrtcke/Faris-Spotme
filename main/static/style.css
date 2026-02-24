@@ -1,5 +1,6 @@
 body {
   margin: 20px;
+  opacity: 0.6;
   background: #171a16;
   background: linear-gradient(
     90deg,
@@ -12,7 +13,6 @@ body {
 }
 body {
   background-color: rgb(170, 170, 170);
-  opacity: 0.9;
   align-items: center;
   border-style: groove;
   border-color: white;
@@ -51,7 +51,7 @@ body {
 #description {
   font-family: "Times New Roman", serif;
   text-align: center;
-  color: rgb(255, 255, 255); 
+  color: rgb(255, 255, 255);
   margin-top: 12px;
   width: 60%;
 }
