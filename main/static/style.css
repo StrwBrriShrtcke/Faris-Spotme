@@ -10,16 +10,27 @@ body {
   width: 1200px;
   height: 1920px;
 }
+body {
+  background-color: rgb(170, 170, 170);
+  opacity: 0.9;
+  align-items: center;
+  border-style: groove;
+  border-color: white;
+  border-radius: 16px;
+  margin: auto;
+  width: 1100px;
+  height: 1820px;
+}
 .heading {
-  font-family: "Arial", sans-serif;
+  font-family: "Times New Roman", serif;
   text-align: center;
-  color: black;
+  color: rgb(255, 255, 255);
 }
 .button {
-  background-color: #e1d6d6;
+  background-color: #928989;
   border-style: wave;
   border-color: white;
-  color: black;
+  color: rgb(255, 255, 255);
   padding: 15px 32px;
   text-align: center;
   display: inline-block;
@@ -30,11 +41,25 @@ body {
   width: 250px;
   margin: 30px;
 }
+
+#welcome {
+  font-family: "Tines New Roman", sans-serif;
+  text-align: center;
+  color: rgb(255, 255, 255);
+}
+
+#description {
+  font-family: "Times New Roman", serif;
+  text-align: center;
+  color: rgb(255, 255, 255);
+  margin-top: 12px;
+  width: 60%;
+}
 .button-container {
   align-items: center;
   display: flex;
   width: 80%;
-  margin: 20px;
+  margin: auto;
 }
 #workout-video {
   display: block;
@@ -46,9 +71,14 @@ body {
   border-radius: 16px;
 }
 #bodyTitle {
-  font-family: "Arial", sans-serif;
+  font-family: "Times New Roman", serif;
   text-align: center;
-  color: black;
+  color: rgb(255, 255, 255);
+}
+#select-workout {
+  font-family: "Times New Roman", serif;
+  text-align: center;
+  color: rgb(255, 255, 255);
 }
 
 .pose-panel {
