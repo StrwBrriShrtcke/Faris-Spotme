@@ -15,32 +15,38 @@
   </head>
 
   <body>
-    <h1 id="bodyTitle">{{ pageTitle }}</h1>
+    <div class="surround-box">
+      <button class="back-button" onclick="window.location.href='/selection'">
+        ← Back
+      </button>
 
-    <!-- Display live pose camera feed -->
-    <img id="pose-camera" src="/video_feed" width="1000" />
+      <h1 id="bodyTitle">{{ pageTitle }}</h1>
 
-    <!-- Display pose feedback -->
-    <div class="pose-panel">
-      <div class="pose-side">
-        <h2>Left</h2>
-        <p>Angle: <span id="left-angle">—</span>°</p>
-        <p>Feedback: <span id="left-feedback">Waiting…</span></p>
+      <!-- Display live pose camera feed -->
+      <img id="pose-camera" src="/video_feed" class="camera clickable"/>
+
+      <!-- Display pose feedback -->
+      <div class="pose-panel">
+        <div class="pose-side">
+          <h2>Left</h2>
+          <p>Angle: <span id="left-angle">—</span>°</p>
+          <p>Feedback: <span id="left-feedback">Waiting…</span></p>
+        </div>
+
+        <div class="pose-side">
+          <h2>Right</h2>
+          <p>Angle: <span id="right-angle">—</span>°</p>
+          <p>Feedback: <span id="right-feedback">Waiting…</span></p>
+        </div>
       </div>
 
-      <div class="pose-side">
-        <h2>Right</h2>
-        <p>Angle: <span id="right-angle">—</span>°</p>
-        <p>Feedback: <span id="right-feedback">Waiting…</span></p>
-      </div>
+      <!-- Display workout video -->
+      <iframe
+        id="workout-video"
+        src="{{ video }}"
+        allow="autoplay; encrypted-media"
+        allowfullscreen
+      ></iframe>
     </div>
-
-    <!-- Display workout video -->
-    <iframe
-      id="workout-video"
-      src="{{ video }}"
-      allow="autoplay; encrypted-media"
-      allowfullscreen
-    ></iframe>
   </body>
 </html>

@@ -41,4 +41,24 @@ socket.on("pose_data", (data) => {
     data.right_feedback ?? "—";
 });
 
+const img = document.getElementById("pose-camera");
+
+img.addEventListener("click", (e) => {
+  const rect = img.getBoundingClientRect();
+
+  // click location within the displayed image
+  const xDisp = e.clientX - rect.left;
+  const yDisp = e.clientY - rect.top;
+
+  // scale to the server frame size
+  // IMPORTANT: set these to whatever cap is producing (480x360 in your app)
+  const FRAME_W = 480; // <-- change to match your cap width
+  const FRAME_H = 360; // <-- change to match your cap height
+
+  const x = Math.round((xDisp / rect.width) * FRAME_W);
+  const y = Math.round((yDisp / rect.height) * FRAME_H);
+
+  socket.emit("select_point", { x, y });
+});
+
 console.log("Loaded:", pageTitle, video);

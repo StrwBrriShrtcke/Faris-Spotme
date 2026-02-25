@@ -24,6 +24,8 @@ socketio = SocketIO(
 
 # ── Shared globals (same as pose_demo2.py) ──
 cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 480)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
 # use yolo26n-pose.pt for easier development on computer, switch to yolo26n-pose_ncnn_model for better performance on raspberry pi
 # model = YOLO("yolo26n-pose.pt")
 model = YOLO("yolo26n-pose_ncnn_model")
@@ -40,6 +42,33 @@ state_lock = Lock()
 latest_jpeg = None
 latest_pose = {"feedback": "Starting..."}
 
+clicked_point = None   # (x,y) from UI
+last_box = None        # (x1,y1,x2,y2) for reacquire
+
+# -- for click selection --
+def pick_id_from_click(boxes_xyxy, ids, px, py):
+    candidates = []
+    for i, (x1, y1, x2, y2) in enumerate(boxes_xyxy):
+        if x1 <= px <= x2 and y1 <= py <= y2:
+            area = (x2 - x1) * (y2 - y1)
+            candidates.append((area, ids[i], i))
+    if not candidates:
+        return None, None
+    candidates.sort(key=lambda t: t[0])  # smallest area first
+    _, sel_id, sel_i = candidates[0]
+    return sel_id, sel_i
+
+def iou_tuple(a, b):
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    ix1, iy1 = max(ax1, bx1), max(ay1, by1)
+    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+    inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
+    if inter <= 0:
+        return 0.0
+    area_a = max(0, ax2 - ax1) * max(0, ay2 - ay1)
+    area_b = max(0, bx2 - bx1) * max(0, by2 - by1)
+    return inter / float(area_a + area_b - inter + 1e-9)
 
 # ── Core frame processor ──
 def process_frame(frame):
@@ -50,14 +79,13 @@ def process_frame(frame):
     out_frame = annotated OpenCV frame (the `out` variable)
     pose_json = data for Socket.IO
     """
-    global selected_id, exercise_wanted
+    global selected_id, exercise_wanted, clicked_point, last_box
 
     results = model.track(frame, imgsz=IMGSZ, classes=[0], persist=True, verbose=False)[
         0
     ]
 
-    # blurred background effect
-    out = cv2.blur(frame, (15, 15)).copy()
+    out = frame.copy()
 
     boxes = results.boxes
     kpts = results.keypoints
@@ -78,14 +106,51 @@ def process_frame(frame):
     ids = boxes.id.int().cpu().tolist()
 
     # if no selection yet, pick the biggest person (closest to camera) as default
+    # if selected_id is None:
+    #     areas = []
+    #     xyxy = boxes.xyxy.cpu().tolist()
+    #     for i, (x1, y1, x2, y2) in enumerate(xyxy):
+    #         area = (x2 - x1) * (y2 - y1)
+    #         areas.append((area, ids[i], i))
+    #     areas.sort(reverse=True)
+    #     selected_id = areas[0][1]
+    xyxy = boxes.xyxy.cpu().tolist()
+    xyxy = [list(map(int, b)) for b in xyxy]  # int boxes
+
+    # If we have a click, lock to whoever was clicked
+    if clicked_point is not None:
+        px, py = clicked_point
+        sel, sel_i = pick_id_from_click(xyxy, ids, px, py)
+        if sel is not None:
+            selected_id = sel
+            # store last_box for re-acquire
+            last_box = tuple(xyxy[sel_i])
+        clicked_point = None
+
     if selected_id is None:
-        areas = []
-        xyxy = boxes.xyxy.cpu().tolist()
-        for i, (x1, y1, x2, y2) in enumerate(xyxy):
-            area = (x2 - x1) * (y2 - y1)
-            areas.append((area, ids[i], i))
-        areas.sort(reverse=True)
-        selected_id = areas[0][1]
+        for (x1, y1, x2, y2) in xyxy:
+            cv2.rectangle(out, (x1, y1), (x2, y2), (255, 255, 255), 2)
+        cv2.putText(out, "Click a person to select", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+        return out, {"feedback": "Click a person to select"}
+    
+    if selected_id is not None and selected_id not in ids:
+        # try reacquire using last_box (best IoU)
+        if last_box is not None:
+            best_i = None
+            best_score = 0.0
+            for i, b in enumerate(xyxy):
+                score = iou_tuple(b, last_box)
+                if score > best_score:
+                    best_score = score
+                    best_i = i
+            if best_i is not None and best_score > 0.10:
+                selected_id = ids[best_i]
+                last_box = tuple(xyxy[best_i])
+            else:
+                selected_id = None  # require click again
+        else:
+            selected_id = None
 
     pose_json = {}
 
@@ -93,7 +158,7 @@ def process_frame(frame):
     if selected_id in ids:
         i = ids.index(selected_id)
         x1, y1, x2, y2 = map(int, boxes.xyxy[i].cpu().tolist())
-        out[y1:y2, x1:x2] = frame[y1:y2, x1:x2]
+        last_box = (x1, y1, x2, y2)
 
         if kpts is not None:
             kxy = kpts.xy[i].cpu().numpy()
@@ -137,7 +202,6 @@ def process_frame(frame):
         cv2.rectangle(out, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
     return out, pose_json  # ← returns annotated frame + JSON
-
 
 # ── Background camera loop (updates shared latest_jpeg and latest_pose) ──
 def camera_loop():
@@ -210,6 +274,17 @@ def set_exercise(data):
 def reset_target():
     global selected_id
     selected_id = None
+
+@socketio.on("select_point")
+def select_point(data):
+    global clicked_point, selected_id
+    x = int((data or {}).get("x", -1))
+    y = int((data or {}).get("y", -1))
+    print("CLICK:", x, y)
+    if x >= 0 and y >= 0:
+        clicked_point = (x, y)
+        selected_id = None  # force re-lock on next frame
+        last_box = None
 
 
 if __name__ == "__main__":
