@@ -1,9 +1,11 @@
 from threading import Lock
 
+import numpy as np
 import angle_calc
 import cv2
 from flask import Flask, Response, redirect, render_template, request, url_for
 from flask_socketio import SocketIO
+
 
 # Import pose utilities from pose_final.py
 from pose_final import (
@@ -23,9 +25,12 @@ socketio = SocketIO(
 )
 
 # ── Shared globals (same as pose_demo2.py) ──
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 480)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
+cap.set(cv2.CAP_PROP_FPS, 30)
+cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
 # use yolo26n-pose.pt for easier development on computer, switch to yolo26n-pose_ncnn_model for better performance on raspberry pi
 # model = YOLO("yolo26n-pose.pt")
 model = YOLO("yolo26n-pose_ncnn_model")
@@ -103,19 +108,23 @@ def process_frame(frame):
         )
         return out, {"feedback": "No person detected"}
 
-    ids = boxes.id.int().cpu().tolist()
+    # --- NaN / inf safe boxes ---
+    xyxy_np = boxes.xyxy.cpu().numpy()
+    ids_np  = boxes.id.int().cpu().numpy()
 
-    # if no selection yet, pick the biggest person (closest to camera) as default
-    # if selected_id is None:
-    #     areas = []
-    #     xyxy = boxes.xyxy.cpu().tolist()
-    #     for i, (x1, y1, x2, y2) in enumerate(xyxy):
-    #         area = (x2 - x1) * (y2 - y1)
-    #         areas.append((area, ids[i], i))
-    #     areas.sort(reverse=True)
-    #     selected_id = areas[0][1]
-    xyxy = boxes.xyxy.cpu().tolist()
-    xyxy = [list(map(int, b)) for b in xyxy]  # int boxes
+    mask = np.isfinite(xyxy_np).all(axis=1)
+    keep_idx = np.where(mask)[0] 
+    xyxy_np = xyxy_np[mask]
+    ids_np  = ids_np[mask]
+
+    # if everything got filtered out, treat as "no person"
+    if xyxy_np.shape[0] == 0:
+        cv2.putText(out, "No valid boxes", (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        return out, {"feedback": "No valid boxes"}
+
+    xyxy = [list(map(int, b)) for b in xyxy_np.tolist()]
+    ids  = ids_np.tolist()
 
     # If we have a click, lock to whoever was clicked
     if clicked_point is not None:
@@ -157,13 +166,14 @@ def process_frame(frame):
     # Person selected → run angles + feedback
     if selected_id in ids:
         i = ids.index(selected_id)
-        x1, y1, x2, y2 = map(int, boxes.xyxy[i].cpu().tolist())
+        orig_i = int(keep_idx[i])   
+        x1, y1, x2, y2 = xyxy[i]
         last_box = (x1, y1, x2, y2)
 
         if kpts is not None:
-            kxy = kpts.xy[i].cpu().numpy()
+            kxy = kpts.xy[orig_i].cpu().numpy()
             kconf = (
-                kpts.conf[i].cpu().numpy()
+                kpts.conf[orig_i].cpu().numpy()
                 if hasattr(kpts, "conf") and kpts.conf is not None
                 else None
             )
@@ -206,22 +216,38 @@ def process_frame(frame):
 # ── Background camera loop (updates shared latest_jpeg and latest_pose) ──
 def camera_loop():
     global latest_jpeg, latest_pose
+    frame_i = 0
+    last_out = None
+    last_pose = {"feedback": "Starting..."}
+
+    enc_params = [int(cv2.IMWRITE_JPEG_QUALITY), 60]
+
     while True:
-        ret, frame = cap.read()
+        for _ in range(2):
+            cap.grab()
+        ret, frame = cap.retrieve()
         if not ret:
-            socketio.sleep(0.01)
+            socketio.sleep(0.005)
             continue
 
-        out_frame, pose_json = process_frame(frame)
-        ok, buffer = cv2.imencode(".jpg", out_frame)
-        if ok:
-            with state_lock:
-                latest_jpeg = buffer.tobytes()
-                latest_pose = pose_json
+        frame_i += 1
 
-        # emit pose at ~20–30Hz (tune as needed)
-        socketio.emit("pose_data", pose_json)
-        socketio.sleep(0.03)
+        #run inference every 4th frame to save CPU
+        if frame_i % 4 == 0:
+            last_out, last_pose = process_frame(frame)
+        if frame_i % 8 == 0:
+            socketio.emit("pose_data", last_pose)
+
+        out_frame = last_out if last_out is not None else frame
+
+        if frame_i % 2 == 0:
+            ok, buffer = cv2.imencode(".jpg", out_frame, enc_params)
+            if ok:
+                with state_lock:
+                    latest_jpeg = buffer.tobytes()
+                    latest_pose = last_pose
+
+        socketio.sleep(0.005)
 
 
 # ── MJPEG stream ──
@@ -232,10 +258,10 @@ def video_feed():
             with state_lock:
                 jpg = latest_jpeg
             if jpg is None:
-                socketio.sleep(0.01)
+                socketio.sleep(0.066)
                 continue
             yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpg + b"\r\n")
-            socketio.sleep(0.01)
+            socketio.sleep(0.066)
 
     return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
@@ -277,13 +303,13 @@ def reset_target():
 
 @socketio.on("select_point")
 def select_point(data):
-    global clicked_point, selected_id
+    global clicked_point, selected_id, last_box
     x = int((data or {}).get("x", -1))
     y = int((data or {}).get("y", -1))
     print("CLICK:", x, y)
     if x >= 0 and y >= 0:
         clicked_point = (x, y)
-        selected_id = None  # force re-lock on next frame
+        selected_id = None
         last_box = None
 
 
