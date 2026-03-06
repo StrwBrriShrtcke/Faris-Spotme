@@ -49,6 +49,8 @@ latest_pose = {"feedback": "Starting..."}
 
 clicked_point = None  # (x,y) from UI
 last_box = None  # (x1,y1,x2,y2) for reacquire
+last_kxy = None
+last_kconf = None
 
 
 # -- for click selection --
@@ -78,22 +80,16 @@ def iou_tuple(a, b):
     return inter / float(area_a + area_b - inter + 1e-9)
 
 
-def draw_last_known_box(frame, box, track_id):
-    if box is None or track_id is None:
-        return frame
-
+def draw_last_known_box(frame, box, track_id, kxy, kconf, exercise_name):
     out = frame.copy()
+
+    if box is None or track_id is None:
+        return out
+
     x1, y1, x2, y2 = box
     cv2.rectangle(out, (x1, y1), (x2, y2), (0, 255, 0), 2)
-    cv2.putText(
-        out,
-        f"Tracking ID {track_id}",
-        (x1, max(20, y1 - 10)),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
-        (0, 255, 0),
-        2,
-    )
+    if last_kxy is not None:
+        draw_pose(out, last_kxy, exercise_wanted, last_kconf, conf_thres=0.3)
     return out
 
 
@@ -106,7 +102,7 @@ def process_frame(frame):
     out_frame = annotated OpenCV frame (the `out` variable)
     pose_json = data for Socket.IO
     """
-    global selected_id, exercise_wanted, clicked_point, last_box
+    global selected_id, exercise_wanted, clicked_point, last_box, last_kxy, last_kconf
 
     results = model.track(frame, imgsz=IMGSZ, classes=[0], persist=True, verbose=False)[
         0
@@ -188,8 +184,14 @@ def process_frame(frame):
                 last_box = tuple(xyxy[best_i])
             else:
                 selected_id = None  # require click again
+                last_kxy = None
+                last_kconf = None
+                last_box = None
         else:
             selected_id = None
+            last_kxy = None
+            last_kconf = None
+            last_box = None
 
     pose_json = {
         "exercise": exercise_wanted,
@@ -213,6 +215,8 @@ def process_frame(frame):
                 if hasattr(kpts, "conf") and kpts.conf is not None
                 else None
             )
+            last_kxy = kxy.copy()
+            last_kconf = kconf.copy() if kconf is not None else None
 
             left_idxs, right_idxs = exercises_what_kpts[exercise_wanted]
             if kconf is None:
@@ -256,7 +260,7 @@ def process_frame(frame):
 
 # ── Background camera loop (updates shared latest_jpeg and latest_pose) ──
 def camera_loop():
-    global latest_jpeg, latest_pose
+    global latest_jpeg, latest_pose, last_kxy, last_kconf
     frame_i = 0
     last_out = None
     last_pose = {"feedback": "Starting..."}
@@ -283,7 +287,14 @@ def camera_loop():
         if frame_i % 4 == 0 and last_out is not None:
             out_frame = last_out
         else:
-            out_frame = draw_last_known_box(frame, last_box, selected_id)
+            out_frame = draw_last_known_box(
+                frame,
+                last_box,
+                selected_id,
+                last_kxy,
+                last_kconf,
+                exercise_wanted,
+            )
 
         if frame_i % 2 == 0:
             ok, buffer = cv2.imencode(".jpg", out_frame, enc_params)
@@ -343,21 +354,25 @@ def set_exercise(data):
 
 @socketio.on("reset_target")
 def reset_target():
-    global selected_id, last_box, clicked_point
+    global selected_id, last_box, clicked_point, last_kxy, last_kconf
     selected_id = None
     last_box = None
     clicked_point = None
+    last_kxy = None
+    last_kconf = None
 
 
 @socketio.on("select_point")
 def select_point(data):
-    global clicked_point, selected_id, last_box
+    global clicked_point, selected_id, last_box, last_kxy, last_kconf
     x = int((data or {}).get("x", -1))
     y = int((data or {}).get("y", -1))
     print("CLICK:", x, y)
     if x >= 0 and y >= 0:
         clicked_point = (x, y)
         selected_id = None
+        last_kxy = None
+        last_kconf = None
         last_box = None
 
 
